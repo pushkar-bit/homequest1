@@ -1,0 +1,114 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("user") 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  favorites Favorites[]
+  refreshTokens RefreshToken[]
+  properties Property[]
+  insightHistory InsightHistory[]
+}
+
+model Favorites {
+  id         Int    @id @default(autoincrement())
+  userId     Int
+  user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  propertyId String 
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, propertyId])
+}
+
+model RefreshToken {
+  id         Int      @id @default(autoincrement())
+  token      String   @unique
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+  revoked    Boolean  @default(false)
+}
+
+model CityInsight {
+  id               Int     @id @default(autoincrement())
+  city             String  @unique
+  avgPriceSqFt     Float
+  oneYearGrowth    Float
+  demandIndex      Float
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model LocalityInsight {
+  id               Int     @id @default(autoincrement())
+  city             String
+  locality         String
+  avgPriceSqFt     Float
+  oneYearGrowth    Float
+  trendComment     String  @db.Text
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([city, locality])
+}
+
+model SocietyInsight {
+  id               Int     @id @default(autoincrement())
+  city             String
+  locality         String
+  society          String
+  avgPriceSqFt     Float
+  oneYearGrowth    Float
+  historicData     Json
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([city, locality, society])
+}
+
+model Property {
+  id           String   @id
+  sellerId     Int?
+  seller       User?    @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  city         String
+  locality     String
+  type         String
+  price        String
+  pricePerUnit Int?
+  area         String?
+  demand       Int      @default(50)
+  views        Int      @default(0)
+  image        String?
+  images       Json?
+  description  String?  @db.Text
+  deletedAt    DateTime?
+  deletedBy    Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model InsightHistory {
+  id            Int      @id @default(autoincrement())
+  insightType   String   
+  insightId     Int
+  fieldName     String
+  oldValue      String   @db.Text
+  newValue      String   @db.Text
+  changedBy     Int
+  changedByUser User     @relation(fields: [changedBy], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+}
+

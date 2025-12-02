@@ -1,0 +1,86 @@
+
+> backend@1.0.0 dev
+> node server.js
+
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 🔑 add access controls to secrets: https://dotenvx.com/ops
+Server running on port 5001
+Prisma unavailable or error. Falling back to mock properties: 
+Invalid `prisma.property.count()` invocation in
+/Users/pushkarjain/Desktop/HomeQuest1/backend/controllers/propertiesController.js:59:25
+
+  56 const pageSize = 12;
+  57 
+  58 const [total, data] = await Promise.all([
+→ 59   prisma.property.count({
+         select: {
+           _count: {
+             select: {
+               _all: true
+             }
+           }
+         },
+         where: {
+           city: {
+             equals: "Delhi",
+             mode: "insensitive",
+             ~~~~
+       ?     in?: String[],
+       ?     notIn?: String[],
+       ?     lt?: String | StringFieldRefInput,
+       ?     lte?: String | StringFieldRefInput,
+       ?     gt?: String | StringFieldRefInput,
+       ?     gte?: String | StringFieldRefInput,
+       ?     contains?: String | StringFieldRefInput,
+       ?     startsWith?: String | StringFieldRefInput,
+       ?     endsWith?: String | StringFieldRefInput,
+       ?     search?: String,
+       ?     not?: String | NestedStringFilter
+           },
+           type: {
+             equals: "2BHK",
+             mode: "insensitive"
+           }
+         }
+       })
+
+Unknown argument `mode`. Did you mean `lte`? Available options are marked with ?.
+Prisma unavailable or error. Falling back to mock properties: 
+Invalid `prisma.property.count()` invocation in
+/Users/pushkarjain/Desktop/HomeQuest1/backend/controllers/propertiesController.js:59:25
+
+  56 const pageSize = 12;
+  57 
+  58 const [total, data] = await Promise.all([
+→ 59   prisma.property.count({
+         select: {
+           _count: {
+             select: {
+               _all: true
+             }
+           }
+         },
+         where: {
+           city: {
+             equals: "Delhi",
+             mode: "insensitive",
+             ~~~~
+       ?     in?: String[],
+       ?     notIn?: String[],
+       ?     lt?: String | StringFieldRefInput,
+       ?     lte?: String | StringFieldRefInput,
+       ?     gt?: String | StringFieldRefInput,
+       ?     gte?: String | StringFieldRefInput,
+       ?     contains?: String | StringFieldRefInput,
+       ?     startsWith?: String | StringFieldRefInput,
+       ?     endsWith?: String | StringFieldRefInput,
+       ?     search?: String,
+       ?     not?: String | NestedStringFilter
+           },
+           type: {
+             equals: "2BHK",
+             mode: "insensitive"
+           }
+         }
+       })
+
+Unknown argument `mode`. Did you mean `lte`? Available options are marked with ?.
