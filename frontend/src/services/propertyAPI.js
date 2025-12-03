@@ -3,13 +3,14 @@ import axios from 'axios';
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 
 
-export const fetchPropertiesFromBackend = async (city, type = '', page = 1, pageSize = 12) => {
+export const fetchPropertiesFromBackend = async (city, type = '', page = 1, pageSize = 12, sortBy = 'newest') => {
   try {
     const params = {
       city: city,
       ...(type && { type: type }),
       page,
       pageSize,
+      sortBy,
     };
 
     const response = await axios.get(`${API_BASE_URL}/api/properties`, {
@@ -40,7 +41,7 @@ export const fetchTrendingProperties = async (limit = 6) => {
       params: { limit },
     });
 
-    
+
     const data = response.data.data || response.data || [];
     return {
       success: true,
@@ -48,7 +49,7 @@ export const fetchTrendingProperties = async (limit = 6) => {
     };
   } catch (error) {
     console.error('Error fetching trending properties:', error);
-    
+
     return {
       success: true,
       data: [],
@@ -58,10 +59,10 @@ export const fetchTrendingProperties = async (limit = 6) => {
 };
 
 
-export const fetchAllProperties = async (page = 1, pageSize = 12) => {
+export const fetchAllProperties = async (page = 1, pageSize = 12, sortBy = 'newest') => {
   try {
     const response = await axios.get(`${API_BASE_URL}/api/properties`, {
-      params: { page, pageSize },
+      params: { page, pageSize, sortBy },
     });
 
     return {
@@ -84,13 +85,13 @@ export const fetchAllProperties = async (page = 1, pageSize = 12) => {
 
 
 export const fetchProperties = async (filters = {}) => {
-  const { city, type, page = 1, pageSize = 12 } = filters;
+  const { city, type, page = 1, pageSize = 12, sortBy = 'newest' } = filters;
 
   if (!city) {
     return { success: false, data: [], error: 'City is required' };
   }
 
-  return fetchPropertiesFromBackend(city, type, page, pageSize);
+  return fetchPropertiesFromBackend(city, type, page, pageSize, sortBy);
 };
 
 

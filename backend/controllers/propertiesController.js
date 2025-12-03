@@ -43,12 +43,12 @@ const prisma = new PrismaClient();
 
 const getProperties = async (req, res) => {
   try {
-    const { city, type, page = 1, sellerId } = req.query;
+    const { city, type, page = 1, sellerId, sortBy = 'newest' } = req.query;
 
     let dbError = null;
-    
+
     try {
-      const where = { deletedAt: null }; 
+      const where = { deletedAt: null };
       if (city) where.city = { equals: city };
       if (type) where.type = { equals: type };
       if (sellerId) where.sellerId = parseInt(sellerId, 10);
@@ -56,18 +56,33 @@ const getProperties = async (req, res) => {
       const pageNum = parseInt(page) || 1;
       const pageSize = 12;
 
+      // Determine sorting order based on sortBy parameter
+      let orderBy;
+      switch (sortBy) {
+        case 'highDemand':
+          orderBy = { demand: 'desc' };
+          break;
+        case 'priceLowHigh':
+          orderBy = { pricePerUnit: 'asc' };
+          break;
+        case 'newest':
+        default:
+          orderBy = { createdAt: 'desc' };
+          break;
+      }
+
       const [total, data] = await Promise.all([
         prisma.property.count({ where }),
-        prisma.property.findMany({ where, skip: (pageNum - 1) * pageSize, take: pageSize, orderBy: { createdAt: 'desc' } }),
+        prisma.property.findMany({ where, skip: (pageNum - 1) * pageSize, take: pageSize, orderBy }),
       ]);
 
       return res.json({ success: true, data, total, page: pageNum, pageSize, message: 'Properties fetched (db)' });
     } catch (dbErr) {
       console.warn('Prisma unavailable or error. Falling back to mock properties:', dbErr.message);
-      
+
     }
 
-    
+
     const { city: cityQuery, type: typeQuery } = req.query;
     let properties = [];
     if (cityQuery) {
@@ -77,6 +92,20 @@ const getProperties = async (req, res) => {
 
     if (typeQuery) {
       properties = properties.filter(p => p.type.toLowerCase() === typeQuery.toLowerCase());
+    }
+
+    // Apply sorting for mock data
+    switch (sortBy) {
+      case 'highDemand':
+        properties.sort((a, b) => (b.demand || 0) - (a.demand || 0));
+        break;
+      case 'priceLowHigh':
+        properties.sort((a, b) => (a.pricePerUnit || 0) - (b.pricePerUnit || 0));
+        break;
+      case 'newest':
+      default:
+        // Mock data doesn't have createdAt, so keep as-is
+        break;
     }
 
     const pageNum = parseInt(page) || 1;
@@ -103,7 +132,7 @@ const getPropertyById = async (req, res) => {
     try {
       const property = await prisma.property.findUnique({ where: { id } });
       if (property) {
-        
+
         if (property.deletedAt) {
           return res.status(410).json({
             success: false,
@@ -117,7 +146,7 @@ const getPropertyById = async (req, res) => {
       console.warn('Prisma error in getPropertyById, falling back to mock:', dbErr.message);
     }
 
-    
+
     for (const city in MOCK_PROPERTIES) {
       const property = MOCK_PROPERTIES[city].find(p => p.id === id);
       if (property) return res.json({ success: true, data: property, message: 'Property fetched (mock)' });
@@ -142,7 +171,7 @@ const getTrendingProperties = async (req, res) => {
       console.warn('Prisma trending error, falling back to mock:', dbErr.message);
     }
 
-    
+
     const allProperties = [];
     for (const city in MOCK_PROPERTIES) allProperties.push(...MOCK_PROPERTIES[city]);
     const trending = allProperties.sort((a, b) => b.demand - a.demand).slice(0, parseInt(limit, 10));
@@ -179,7 +208,7 @@ const createProperty = async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing required fields: city, locality, type, price' });
     }
 
-    
+
     let newId = id;
     if (!newId) {
       const prefix = city.replace(/\s+/g, '').slice(0, 3).toUpperCase();
@@ -201,7 +230,7 @@ const createProperty = async (req, res) => {
       description: description || ''
     };
 
-    
+
     const created = await prisma.property.create({
       data: {
         id: newProperty.id,
@@ -232,11 +261,11 @@ const updateProperty = async (req, res) => {
   try {
     const { id } = req.params;
     const payload = req.body;
-    
+
     try {
       const existing = await prisma.property.findUnique({ where: { id } });
       if (!existing) return res.status(404).json({ success: false, error: 'Property not found' });
-      
+
       if (existing.sellerId && existing.sellerId !== req.userId && req.user?.role !== 'admin') {
         return res.status(403).json({ success: false, error: 'Not authorized to update this property' });
       }
@@ -246,7 +275,7 @@ const updateProperty = async (req, res) => {
       console.warn('Prisma update failed, trying mock fallback:', dbErr.message);
     }
 
-    
+
     for (const city in MOCK_PROPERTIES) {
       const idx = MOCK_PROPERTIES[city].findIndex(p => p.id === id);
       if (idx !== -1) {
@@ -273,7 +302,7 @@ const deleteProperty = async (req, res) => {
       if (existing.sellerId && existing.sellerId !== req.userId && req.user?.role !== 'admin') {
         return res.status(403).json({ success: false, error: 'Not authorized to delete this property' });
       }
-      
+
       await prisma.property.update({
         where: { id },
         data: {
@@ -286,7 +315,7 @@ const deleteProperty = async (req, res) => {
       console.warn('Prisma delete failed, trying mock fallback:', dbErr.message);
     }
 
-    
+
     for (const city in MOCK_PROPERTIES) {
       const idx = MOCK_PROPERTIES[city].findIndex(p => p.id === id);
       if (idx !== -1) {
@@ -335,7 +364,7 @@ const recoverProperty = async (req, res) => {
     if (!existing) return res.status(404).json({ success: false, error: 'Property not found' });
     if (!existing.deletedAt) return res.status(400).json({ success: false, error: 'Property is not deleted' });
 
-    
+
     const recovered = await prisma.property.update({
       where: { id },
       data: {

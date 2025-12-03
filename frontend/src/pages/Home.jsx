@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SearchBar from '../components/SearchBar';
 import PropertyCard from '../components/PropertyCard';
-import { sortProperties, fetchProperties, fetchAllProperties } from '../services/propertyAPI';
+import { fetchProperties, fetchAllProperties } from '../services/propertyAPI';
 import Pagination from '../components/Pagination';
 import { Calculator, TrendingUp, DollarSign, Ruler, Navigation } from 'lucide-react';
 import DottedSurface from '../components/DottedSurface';
@@ -45,7 +45,7 @@ export default function Home() {
       setPage(1);
       setSearchParams({ city: searchData.city, type: searchData.type, priceRange: searchData.priceRange });
       
-      const res = await fetchProperties({ city: searchData.city, type: searchData.type, page: 1, pageSize });
+      const res = await fetchProperties({ city: searchData.city, type: searchData.type, page: 1, pageSize, sortBy });
       if (res.success) {
         setTrendingProperties(res.data || []);
         setTotal(res.total || 0);
@@ -92,13 +92,13 @@ export default function Home() {
           setSearchParams({ city, type: '', priceRange: null });
           setPage(1);
           try {
-            const res = await fetchProperties({ city, page: 1, pageSize });
+            const res = await fetchProperties({ city, page: 1, pageSize, sortBy });
             if (res.success) {
               setTrendingProperties(res.data || []);
               setTotal(res.total || 0);
             } else {
               
-              const all = await fetchAllProperties(1, pageSize);
+              const all = await fetchAllProperties(1, pageSize, sortBy);
               if (all.success) {
                 setTrendingProperties(all.data || []);
                 setTotal(all.total || 0);
@@ -106,7 +106,7 @@ export default function Home() {
             }
           } catch (err) {
             console.error('Error fetching properties for detected city', err);
-            const all = await fetchAllProperties(1, pageSize);
+            const all = await fetchAllProperties(1, pageSize, sortBy);
             if (all.success) {
               setTrendingProperties(all.data || []);
               setTotal(all.total || 0);
@@ -117,7 +117,7 @@ export default function Home() {
           const display = data.display_name || '';
           console.warn('City not found in address fields, display_name:', display);
           setError('Could not determine your city from location. Showing all properties.');
-          const all = await fetchAllProperties(1, pageSize);
+          const all = await fetchAllProperties(1, pageSize, sortBy);
           if (all.success) {
             setTrendingProperties(all.data || []);
             setTotal(all.total || 0);
@@ -138,11 +138,7 @@ export default function Home() {
   };
 
   
-  const getSortedProperties = () => {
-    return sortProperties(trendingProperties, sortBy);
-  };
-
-  const sortedProperties = getSortedProperties();
+  // Properties are already sorted by backend, no need for client-side sorting
 
   
   useEffect(() => {
@@ -154,14 +150,14 @@ export default function Home() {
       try {
         if (searchParams) {
           
-          const res = await fetchProperties({ city: searchParams.city, type: searchParams.type, page, pageSize });
+          const res = await fetchProperties({ city: searchParams.city, type: searchParams.type, page, pageSize, sortBy });
           if (res.success) {
             setTrendingProperties(res.data || []);
             setTotal(res.total || 0);
           }
         } else {
           
-          const response = await fetchAllProperties(page, pageSize);
+          const response = await fetchAllProperties(page, pageSize, sortBy);
           if (response.success) {
             setTrendingProperties(response.data || []);
             setTotal(response.total || 0);
@@ -175,8 +171,8 @@ export default function Home() {
     };
 
     loadPage();
-    
-  }, [page, pageSize, JSON.stringify(searchParams)]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, pageSize, sortBy, searchParams?.city, searchParams?.type]);
 
   return (
     <div 
@@ -264,8 +260,8 @@ export default function Home() {
       </div>
       </div>
 
-      {}
-      <div className="py-16 md:py-20">
+      {/* Properties Section */}
+      <div className="relative z-10 py-16 md:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {}
           <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-10 md:mb-12 bg-white/90 dark:bg-gray-900/90 p-6 rounded-xl shadow-lg backdrop-blur-sm">
@@ -282,7 +278,7 @@ export default function Home() {
               </h2>
               <p className="text-sm md:text-base text-gray-900 dark:text-gray-100 font-medium">
                 {searchParams 
-                  ? `Found ${sortedProperties.length} properties` 
+                  ? `Found ${trendingProperties.length} properties on this page` 
                   : 'Most sought-after properties across major cities'}
               </p>
             </div>
@@ -294,7 +290,10 @@ export default function Home() {
               </label>
               <select 
                 value={sortBy} 
-                onChange={(e) => setSortBy(e.target.value)}
+                onChange={(e) => {
+                  setSortBy(e.target.value);
+                  setPage(1); // Reset to page 1 when sort changes
+                }}
                 className="px-4 py-2.5 rounded-lg outline-none text-sm cursor-pointer font-medium bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 shadow-md hover:shadow-lg transition"
               >
                 <option value="newest">Newest</option>
@@ -322,10 +321,10 @@ export default function Home() {
           )}
 
           {}
-          {!loading && sortedProperties.length > 0 ? (
+          {!loading && trendingProperties.length > 0 ? (
             <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-              {sortedProperties.map((property) => (
+              {trendingProperties.map((property) => (
                 <PropertyCard 
                   key={property.id || property.title} 
                   property={property}
@@ -354,10 +353,10 @@ export default function Home() {
           )}
 
           {}
-          {!loading && sortedProperties.length > 0 && (
+          {!loading && trendingProperties.length > 0 && (
             <div className={`text-center mt-10 md:mt-12 pt-8 md:pt-10 ${isDarkMode ? 'border-t border-slate-800' : 'border-t border-gray-200'}`}>
               <p className={`text-sm md:text-base ${isDarkMode ? 'text-slate-400' : 'text-gray-600'}`}>
-                Showing <span className="font-semibold" style={{color: '#DC143C'}}>{sortedProperties.length}</span> of <span className="font-semibold" style={{color: '#DC143C'}}>{total}</span> properties
+                Showing <span className="font-semibold" style={{color: '#DC143C'}}>{trendingProperties.length}</span> of <span className="font-semibold" style={{color: '#DC143C'}}>{total}</span> properties
               </p>
             </div>
           )}
