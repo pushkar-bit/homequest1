@@ -1,0 +1,53 @@
+/* ============================================================
+   HomeQuest Design System Tokens
+   Import this file FIRST in any stylesheet that needs tokens.
+   ============================================================ */
+
+/* ── Brand palette ─────────────────────────────────────────── */
+:root {
+  /* Primary CTA – coral red */
+  --hq-red: #FF5A5F;
+
+  /* Prices, badges, trust indicators – teal */
+  --hq-teal: #00A699;
+
+  /* Headings (light mode) */
+  --hq-dark: #222222;
+
+  /* Body text, captions */
+  --hq-muted: #717171;
+
+  /* Card / section backgrounds (light mode) */
+  --hq-surface: #F7F7F7;
+
+  /* Hero & modal overlays */
+  --hq-overlay: rgba(0, 0, 0, 0.45);
+
+  /* ── Motion ──────────────────────────────────────────────── */
+
+  /* Standard interactive transition */
+  --hq-transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+
+  /* Slower, more cinematic transition */
+  --hq-transition-slow: all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* ── Dark-mode overrides (applied when <html> carries .dark) ─ */
+.dark {
+  /* Surfaces flip to near-black */
+  --hq-surface: #1a1a1a;
+
+  /* Headings flip to near-white */
+  --hq-dark: #f5f5f5;
+}
+
+/* ── Global entrance keyframes ───────────────────────────────── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

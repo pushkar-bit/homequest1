@@ -1,8 +1,8 @@
-const { PrismaClient } = require('@prisma/client');
-
-const prisma = new PrismaClient();
 
 
+const {prisma} = require("../server.js")
+
+// console.log(prisma)
 function randomBetween(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }

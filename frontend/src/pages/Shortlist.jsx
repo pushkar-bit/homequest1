@@ -1,52 +1,100 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { favoritesAPI, getPropertyById, authAPI } from '../services/api';
 import { favoritesStorage } from '../services/favoritesStorage';
 import PropertyCard from '../components/PropertyCard';
-import { Trash2 } from 'lucide-react';
+
+/* ── Scoped CSS ─────────────────────────────────────────────── */
+const CSS = `
+  .sl-wrapper { background: #fdfdfd; transition: background 0.3s ease; }
+  .dark .sl-wrapper { background: #0a0a0a; }
+
+  .sl-hero { padding:60px 24px; text-align:center; }
+  
+  .sl-title { font-family:'DM Serif Display',serif; font-size:clamp(28px,5vw,42px); color:#111111; font-weight:400; margin:0 0 8px; }
+  .dark .sl-title { color:#fff; }
+  
+  .sl-sub   { font-family:'Inter',system-ui,sans-serif; font-size:16px; color:rgba(0,0,0,0.65); margin:0; }
+  .dark .sl-sub { color:rgba(255,255,255,.65); }
+  
+  .sl-empty-title { font-family:'DM Serif Display',serif; font-size:28px; font-weight:400; color:#111111; margin:0 0 12px; }
+  .dark .sl-empty-title { color:#ffffff; }
+  
+  .sl-empty-sub { font-family:'Inter',system-ui,sans-serif; font-size:16px; color:rgba(0,0,0,0.65); margin:0 0 28px; line-height:1.6; }
+  .dark .sl-empty-sub { color:rgba(255,255,255,0.65); }
+  
+  .sl-grid  { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:24px; }
+  .sl-empty { animation:fadeInUp .6s ease forwards; text-align:center; margin:80px auto; max-width:480px; }
+  .sl-cta {
+    display:inline-block; background:var(--hq-red,#FF5A5F); color:#fff;
+    border-radius:99px; padding:14px 32px; font-size:15px; font-weight:600;
+    font-family:'Inter',system-ui,sans-serif; border:none; cursor:pointer;
+    text-decoration:none; transition:transform .2s ease,box-shadow .2s ease;
+  }
+  .sl-cta:hover { transform:scale(1.03) translateY(-1px); box-shadow:0 8px 24px rgba(255,90,95,.35); }
+  .sl-rm-btn {
+    position:absolute; top:10px; right:46px; z-index:5;
+    width:30px; height:30px; border-radius:50%; border:none; cursor:pointer;
+    background:rgba(255,90,95,.9); color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    transition:transform .2s ease,background .2s ease;
+    box-shadow:0 2px 8px rgba(0,0,0,.2);
+  }
+  .sl-rm-btn:hover { transform:scale(1.1); background:var(--hq-red,#FF5A5F); }
+  .sl-spin {
+    width:40px; height:40px; border-radius:50%;
+    border:3px solid #eee; border-top-color:var(--hq-red,#FF5A5F);
+    animation:spin .8s linear infinite; margin:0 auto;
+  }
+  @keyframes spin { to{transform:rotate(360deg)} }
+`;
+
+/* ── Empty-state house SVG ──────────────────────────────────── */
+const HouseSVG = () => (
+  <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginBottom:20 }}>
+    <path d="M10 38L40 12L70 38" stroke="#dddddd" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M16 33V64H64V33" stroke="#dddddd" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <rect x="30" y="46" width="20" height="18" rx="2" stroke="#dddddd" strokeWidth="3" strokeLinecap="round"/>
+    <path d="M55 22V14H63V30" stroke="#dddddd" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
 
 export default function Shortlist() {
-  const [favorites, setFavorites] = useState([]);
+  /* ── All original state (unchanged) ── */
+  const [favorites,  setFavorites]  = useState([]);
   const [properties, setProperties] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState('');
   const [isDarkMode] = useState(() => {
     const savedMode = localStorage.getItem('theme');
     return savedMode ? savedMode === 'dark' : true;
   });
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchFavorites();
-    
-  }, []);
+  useEffect(() => { fetchFavorites(); }, []);
 
+  /* ── fetchFavorites (unchanged logic) ── */
   const fetchFavorites = async () => {
     try {
       setLoading(true);
       setError('');
-      
       let favoritesList = [];
       const isAuthenticated = authAPI.isAuthenticated();
 
-      
       if (isAuthenticated) {
         try {
           const result = await favoritesAPI.getFavorites();
-          if (result.success && result.data) {
-            favoritesList = result.data;
-          }
+          if (result.success && result.data) favoritesList = result.data;
         } catch (err) {
           console.warn('API fetch failed, falling back to localStorage:', err);
-          
           favoritesList = favoritesStorage.getFavorites();
         }
       } else {
-        
         favoritesList = favoritesStorage.getFavorites();
       }
 
       setFavorites(favoritesList);
 
-      
       const propertyPromises = favoritesList.map((fav) => {
         const propertyId = fav.propertyId || fav.id;
         return getPropertyById(propertyId).catch(() => null);
@@ -56,10 +104,7 @@ export default function Shortlist() {
       const validProperties = propertyResults
         .map((res, idx) => {
           if (res && res.success && res.data) {
-            return {
-              ...res.data,
-              favoriteId: favoritesList[idx].id,
-            };
+            return { ...res.data, favoriteId: favoritesList[idx].id };
           }
           return null;
         })
@@ -74,11 +119,10 @@ export default function Shortlist() {
     }
   };
 
+  /* ── handleRemoveFavorite (unchanged logic) ── */
   const handleRemoveFavorite = async (propertyId, favoriteId) => {
     try {
       const isAuthenticated = authAPI.isAuthenticated();
-
-      
       if (isAuthenticated) {
         try {
           const result = await favoritesAPI.removeFavorite(favoriteId);
@@ -91,8 +135,6 @@ export default function Shortlist() {
           console.warn('API remove failed, falling back to localStorage:', err);
         }
       }
-
-      
       favoritesStorage.removeFavorite(propertyId);
       setProperties(properties.filter((p) => p.id !== propertyId && p.favoriteId !== favoriteId));
       setFavorites(favorites.filter((f) => f.id !== favoriteId));
@@ -102,74 +144,85 @@ export default function Shortlist() {
     }
   };
 
+  /* ── Loading state ── */
   if (loading) {
     return (
-      <div className={`flex justify-center items-center min-h-screen ${isDarkMode ? 'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950' : 'bg-white'}`}>
-        <div className={`animate-spin rounded-full h-12 w-12 border-b-2 ${isDarkMode ? 'border-blue-400' : 'border-blue-600'}`}></div>
+      <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center' }}>
+        <style>{CSS}</style>
+        <div className="sl-spin" />
       </div>
     );
   }
 
   return (
-    <div className={`min-h-screen py-12 ${isDarkMode ? 'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950' : 'bg-neutral-100'}`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {}
-        <div className="mb-8">
-          <h1 className={`text-4xl font-display font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-primary-text'}`}>My Shortlist</h1>
-          <p className={`font-ui ${isDarkMode ? 'text-slate-400' : 'text-muted'}`}>
-            {properties.length} {properties.length === 1 ? 'property' : 'properties'} saved
-          </p>
-        </div>
+    <div className="sl-wrapper" style={{ minHeight:'100vh' }}>
+      <style>{CSS}</style>
 
-        {}
-        {error && (
-          <div className={`border rounded-lg mb-6 px-4 py-3 ${isDarkMode ? 'bg-red-500/10 border-red-500/30 text-red-300' : 'bg-red-50 border-red-200 text-red-700'}`}>
+      {/* ── Hero header ── */}
+      <div className="sl-hero">
+        <h1 className="sl-title">Your shortlist</h1>
+        <p className="sl-sub">
+          {properties.length > 0
+            ? `${properties.length} saved ${properties.length === 1 ? 'property' : 'properties'}`
+            : 'Homes you love, saved in one place'}
+        </p>
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div style={{ maxWidth:1200, margin:'24px auto', padding:'0 24px' }}>
+          <div style={{ background:'rgba(255,90,95,.08)', border:'1px solid rgba(255,90,95,.3)', borderRadius:12, padding:'12px 18px', color:'var(--hq-red,#FF5A5F)', fontFamily:'Inter,system-ui,sans-serif', fontSize:14 }}>
             {error}
           </div>
-        )}
+        </div>
+      )}
 
-        {}
+      {/* ── Grid or empty state ── */}
+      <div style={{ maxWidth:1200, margin:'0 auto', padding:'40px 24px' }}>
         {properties.length === 0 ? (
-          <div className={`rounded-lg shadow p-12 text-center ${isDarkMode ? 'bg-slate-800/50 border border-slate-700' : 'bg-white'}`}>
-            <div className="mb-4">
-              <Trash2 className={`w-16 h-16 mx-auto ${isDarkMode ? 'text-slate-600' : 'text-gray-300'}`} />
-            </div>
-            <h2 className={`text-2xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>No Shortlisted Properties Yet</h2>
+          <div className="sl-empty">
+            <HouseSVG />
+            <h2 className="sl-empty-title">
+              No saved properties yet
+            </h2>
+            <p className="sl-empty-sub">
+              {authAPI.isAuthenticated()
+                ? 'Start exploring and shortlist homes you love.'
+                : 'Create an account to save favourites across devices.'}
+            </p>
             {authAPI.isAuthenticated() ? (
-              <>
-                <p className={`mb-6 font-ui ${isDarkMode ? 'text-slate-400' : 'text-muted'}`}>Start exploring properties and add your favorites to your shortlist.</p>
-                <a
-                  href="/home"
-                  className={`inline-block px-6 py-2 rounded-md transition bg-hm-red text-white font-ui font-semibold`}
-                >
-                  Browse Properties
-                </a>
-              </>
+              <button className="sl-cta" onClick={() => navigate('/home')}>Browse Properties</button>
             ) : (
-              <>
-                <p className={`mb-6 font-ui ${isDarkMode ? 'text-slate-400' : 'text-muted'}`}>Create an account to save favorites and build your shortlist.</p>
-                <div className="flex items-center justify-center gap-4">
-                  <a href="/login" className={`px-6 py-2 rounded-md ${isDarkMode ? 'bg-white text-primary-text hover:bg-neutral-50' : 'bg-white border border-neutral-200 text-primary-text hover:bg-neutral-50'}`}>Login</a>
-                  <a href="/signup" className="px-6 py-2 bg-hm-red text-white rounded-md hover:opacity-95 font-ui font-semibold">Sign Up</a>
-                </div>
-              </>
+              <div style={{ display:'flex', gap:12, justifyContent:'center', flexWrap:'wrap' }}>
+                <button className="sl-cta" style={{ background:'#222' }} onClick={() => navigate('/login')}>Login</button>
+                <button className="sl-cta" onClick={() => navigate('/signup')}>Sign Up</button>
+              </div>
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {properties.map((property) => (
-              <div key={property.favoriteId || property.id} className="relative">
+          <div className="sl-grid">
+            {properties.map((property, index) => (
+              <div key={property.favoriteId || property.id} style={{ position:'relative' }}>
                 <PropertyCard
                   property={property}
                   isDarkMode={isDarkMode}
                   onAddToFavorites={() => {}}
+                  style={{
+                    opacity: 0,
+                    animation: 'fadeInUp 0.5s ease forwards',
+                    animationDelay: `${index * 0.07}s`,
+                  }}
                 />
+                {/* Remove button */}
                 <button
+                  className="sl-rm-btn"
                   onClick={() => handleRemoveFavorite(property.id || property.title, property.favoriteId || property.id)}
-                  className={`absolute top-6 right-14 p-2 rounded-full shadow transition ${isDarkMode ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-red-500 hover:bg-red-600 text-white'}`}
                   title="Remove from shortlist"
+                  aria-label="Remove from shortlist"
                 >
-                  <Trash2 className="w-5 h-5" />
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>
+                  </svg>
                 </button>
               </div>
             ))}

@@ -5,7 +5,143 @@ import PropertyCard from '../components/PropertyCard';
 import { fetchProperties, fetchAllProperties } from '../services/propertyAPI';
 import Pagination from '../components/Pagination';
 import { Calculator, TrendingUp, DollarSign, Ruler, Navigation } from 'lucide-react';
-import DottedSurface from '../components/DottedSurface';
+
+const HERO_CSS = `
+  @keyframes heroReveal {
+    from { opacity: 0; transform: translateY(32px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .hq-hero {
+    position: relative;
+    height: 100vh;
+    margin-top: -64px;
+    background: url('/hero-bg-light.png') center/cover no-repeat;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+  }
+  .hq-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to right, rgba(253, 253, 253, 0.95) 0%, rgba(253, 253, 253, 0.6) 50%, transparent 100%);
+    z-index: 1;
+  }
+  .dark .hq-hero { 
+    background: url('/hero-bg-dark.png') center/cover no-repeat; 
+  }
+  .dark .hq-hero::before {
+    background: linear-gradient(to right, rgba(10, 10, 10, 0.95) 0%, rgba(10, 10, 10, 0.6) 50%, transparent 100%);
+  }
+
+  .hq-hero__body {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 48px;
+  }
+  .hq-hero__eyebrow,
+  .hq-hero__headline-line1,
+  .hq-hero__headline-accent,
+  .hq-hero__sub,
+  .hq-hero__search { opacity: 0; }
+  .hq-hero__body--visible .hq-hero__eyebrow         { animation: heroReveal 0.6s ease 0.10s forwards; }
+  .hq-hero__body--visible .hq-hero__headline-line1  { animation: heroReveal 0.6s ease 0.25s forwards; }
+  .hq-hero__body--visible .hq-hero__headline-accent { animation: heroReveal 0.6s ease 0.40s forwards; }
+  .hq-hero__body--visible .hq-hero__sub             { animation: heroReveal 0.6s ease 0.55s forwards; }
+  .hq-hero__body--visible .hq-hero__search          { animation: heroReveal 0.6s ease 0.70s forwards; }
+  
+  .hq-hero__eyebrow {
+    display: block;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(0,0,0,0.4);
+    margin-bottom: 24px;
+  }
+  .dark .hq-hero__eyebrow { color: rgba(255,255,255,0.4); }
+
+  .hq-hero__headline { display: block; margin: 0; }
+  
+  .hq-hero__headline-line1 {
+    display: block;
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-size: clamp(56px, 9vw, 110px);
+    line-height: 0.95;
+    font-weight: 400;
+    color: #111111;
+  }
+  .dark .hq-hero__headline-line1 { color: #ffffff; }
+
+  .hq-hero__headline-accent {
+    display: block;
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-size: clamp(56px, 9vw, 110px);
+    line-height: 0.95;
+    font-weight: 400;
+    color: #FF5A5F;
+    font-style: italic;
+  }
+  
+  .hq-hero__sub {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 18px;
+    color: rgba(0,0,0,0.65);
+    margin: 16px 0 0;
+    font-weight: 400;
+    line-height: 1.5;
+    max-width: 520px;
+  }
+  .dark .hq-hero__sub { color: rgba(255,255,255,0.55); }
+
+  .hq-hero__search { margin-top: 48px; }
+  
+  .hq-hero__loc-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.85rem;
+    padding: 0.5rem 1.2rem;
+    border-radius: 8px;
+    background: rgba(0,0,0,0.04);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(0,0,0,0.1);
+    color: #333;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.25s ease, transform 0.25s ease;
+  }
+  .dark .hq-hero__loc-btn {
+    background: rgba(255,255,255,0.14);
+    border: 1px solid rgba(255,255,255,0.28);
+    color: #fff;
+  }
+  .hq-hero__loc-btn:hover:not(:disabled) {
+    background: rgba(0,0,0,0.08);
+    transform: translateY(-1px);
+  }
+  .dark .hq-hero__loc-btn:hover:not(:disabled) { background: rgba(255,255,255,0.24); }
+  .hq-hero__loc-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  
+  .hq-hero__error {
+    margin-top: 0.6rem;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 13px;
+    color: rgba(200,0,0,0.95);
+    font-weight: 500;
+  }
+  .dark .hq-hero__error { color: rgba(255,190,190,0.95); }
+  
+  @media (max-width: 768px) {
+    .hq-hero__body { padding: 0 24px; }
+  }
+`;
 
 export default function Home() {
   const navigate = useNavigate();
@@ -22,16 +158,21 @@ export default function Home() {
     const savedMode = localStorage.getItem('theme');
     return savedMode ? savedMode === 'dark' : true;
   });
+  const [heroVisible, setHeroVisible] = useState(false);
 
-  
   useEffect(() => {
     const handleThemeChange = () => {
       const isDark = document.documentElement.classList.contains('dark');
       setIsDarkMode(isDark);
     };
-
     window.addEventListener('storage', handleThemeChange);
     return () => window.removeEventListener('storage', handleThemeChange);
+  }, []);
+
+  // Trigger hero entrance animations on first mount
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setHeroVisible(true));
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   
@@ -63,78 +204,110 @@ export default function Home() {
 
   
   const handleUseMyLocation = () => {
-    if (!navigator?.geolocation) {
-      setError('Geolocation not supported in this browser');
-      return;
-    }
-
     setGeoLoading(true);
     setError('');
 
-    navigator.geolocation.getCurrentPosition(async (pos) => {
+    // Shared: given lat/lon, reverse geocode and fetch properties
+    const resolveCity = async (latitude, longitude) => {
+      const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&zoom=10&addressdetails=1`;
+      const resp = await fetch(url, { headers: { 'Accept': 'application/json', 'Accept-Language': 'en' } });
+      if (!resp.ok) throw new Error(`Reverse geocode failed (${resp.status})`);
+      const data = await resp.json();
+      const address = data.address || {};
+      return address.city || address.town || address.village || address.municipality ||
+             address.county || address.city_district || address.state_district ||
+             address.state || address.region || null;
+    };
+
+    // Shared: given a city string, update search state
+    const applyCity = async (city) => {
+      if (!city) {
+        setError('Could not determine your city. Showing all properties.');
+        const all = await fetchAllProperties(1, pageSize, sortBy);
+        if (all.success) { setTrendingProperties(all.data || []); setTotal(all.total || 0); }
+        return;
+      }
+      setSearchParams({ city, type: '', priceRange: null });
+      setPage(1);
       try {
-        const { latitude, longitude } = pos.coords;
-
-        
-        
-        const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&zoom=10&addressdetails=1`;
-        const resp = await fetch(url, { headers: { 'Accept': 'application/json' } });
-        if (!resp.ok) throw new Error(`Reverse geocode failed (${resp.status})`);
-        const data = await resp.json();
-
-        const address = data.address || {};
-        
-        const city = address.city || address.town || address.village || address.municipality || address.county || address.city_district || address.state_district || address.state || address.region;
-        
-
-        if (city) {
-          
-          setSearchParams({ city, type: '', priceRange: null });
-          setPage(1);
-          try {
-            const res = await fetchProperties({ city, page: 1, pageSize, sortBy });
-            if (res.success) {
-              setTrendingProperties(res.data || []);
-              setTotal(res.total || 0);
-            } else {
-              
-              const all = await fetchAllProperties(1, pageSize, sortBy);
-              if (all.success) {
-                setTrendingProperties(all.data || []);
-                setTotal(all.total || 0);
-              }
-            }
-          } catch (err) {
-            console.error('Error fetching properties for detected city', err);
-            const all = await fetchAllProperties(1, pageSize, sortBy);
-            if (all.success) {
-              setTrendingProperties(all.data || []);
-              setTotal(all.total || 0);
-            }
-          }
-        } else {
-          
-          const display = data.display_name || '';
-          console.warn('City not found in address fields, display_name:', display);
-          setError('Could not determine your city from location. Showing all properties.');
+        const res = await fetchProperties({ city, page: 1, pageSize, sortBy });
+        if (res.success) { setTrendingProperties(res.data || []); setTotal(res.total || 0); }
+        else {
           const all = await fetchAllProperties(1, pageSize, sortBy);
-          if (all.success) {
-            setTrendingProperties(all.data || []);
-            setTotal(all.total || 0);
-          }
+          if (all.success) { setTrendingProperties(all.data || []); setTotal(all.total || 0); }
         }
-      } catch (err) {
-        console.error('Reverse geocode error', err);
-        setError('Failed to detect location. Please try again.');
+      } catch {
+        const all = await fetchAllProperties(1, pageSize, sortBy);
+        if (all.success) { setTrendingProperties(all.data || []); setTotal(all.total || 0); }
+      }
+    };
+
+    // IP-geolocation fallback — tries ip-api.com first, then freeipapi.com
+    const ipFallback = async () => {
+      try {
+        // Primary: ip-api.com (CORS-enabled, no key, generous free tier)
+        let city = null;
+        try {
+          const r = await fetch('https://ip-api.com/json/?fields=city,regionName,status');
+          if (r.ok) {
+            const d = await r.json();
+            if (d.status === 'success') city = d.city || d.regionName || null;
+          }
+        } catch { /* try next */ }
+
+        // Secondary fallback: freeipapi.com
+        if (!city) {
+          try {
+            const r2 = await fetch('https://freeipapi.com/api/json');
+            if (r2.ok) {
+              const d2 = await r2.json();
+              city = d2.cityName || d2.regionName || null;
+            }
+          } catch { /* give up */ }
+        }
+
+        await applyCity(city);
+      } catch {
+        setError('Could not detect location. Please enter your city manually.');
       } finally {
         setGeoLoading(false);
       }
-    }, (err) => {
-      console.warn('Geolocation error', err);
-      setGeoLoading(false);
-      if (err.code === 1) setError('Location permission denied');
-      else setError('Failed to get location');
-    }, { enableHighAccuracy: true, timeout: 10000 });
+    };
+
+    // Try browser geolocation first
+    if (!navigator?.geolocation) {
+      // No browser geo support — go straight to IP fallback
+      ipFallback();
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const city = await resolveCity(latitude, longitude);
+          await applyCity(city);
+        } catch (err) {
+          console.error('Reverse geocode error', err);
+          // Reverse geocode failed — try IP fallback before giving up
+          await ipFallback();
+          return;
+        }
+        setGeoLoading(false);
+      },
+      async (err) => {
+        console.warn('Browser geolocation error', err.code, err.message);
+        if (err.code === 1) {
+          // User explicitly denied — don't silently fall back
+          setError('Location permission denied. Please allow access or enter your city manually.');
+          setGeoLoading(false);
+        } else {
+          // Code 2 (unavailable) or 3 (timeout) — use IP fallback silently
+          await ipFallback();
+        }
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+    );
   };
 
   
@@ -175,50 +348,46 @@ export default function Home() {
   }, [page, pageSize, sortBy, searchParams?.city, searchParams?.type]);
 
   return (
-    <div 
-      className="relative min-h-screen pt-24 pb-8"
-      style={{
-        backgroundImage: 'url(https://i.pinimg.com/736x/23/54/28/235428edab13bf6073c973c15a88bf03.jpg)',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundAttachment: 'fixed',
-        backgroundRepeat: 'no-repeat'
-      }}
-    >
-      {}
-      <DottedSurface isDarkMode={isDarkMode} />
-      
-      {}
-      <div className="absolute inset-0 bg-white/80 dark:bg-black/70"></div>
-      
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {}
-        <div className="text-center mb-16">
-          <div className="max-w-3xl mx-auto px-4">
-            {}
-            <div className="mb-4">
-              <SearchBar onSearch={handleSearch} />
-            </div>
-            
-            {}
-            <div className="flex justify-center">
+    <div style={{ minHeight: '100vh' }}>
+      <style>{HERO_CSS}</style>
+
+      {/* ── HERO ──────────────────────────────────────────────── */}
+      <section className="hq-hero">
+        <div className={`hq-hero__body${heroVisible ? ' hq-hero__body--visible' : ''}`}>
+          {/* Eyebrow */}
+          <div className="hq-hero__eyebrow">01 — FIND YOUR HOME</div>
+          {/* Giant headline — split for staggered reveal */}
+          <div className="hq-hero__headline">
+            <span className="hq-hero__headline-line1">Find your perfect</span>
+            <span className="hq-hero__headline-accent">home.</span>
+          </div>
+          {/* Subheadline */}
+          <p className="hq-hero__sub">
+            Explore thousands of verified listings across India's top cities.
+          </p>
+          {/* Search + location — all logic unchanged */}
+          <div className="hq-hero__search">
+            <SearchBar onSearch={handleSearch} />
+            <div>
               <button
                 onClick={handleUseMyLocation}
                 disabled={geoLoading}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-hm-red text-white hover:bg-red-600 transition shadow-md hover:shadow-lg"
+                className="hq-hero__loc-btn"
                 title="Find properties near me"
               >
-                <Navigation className="w-5 h-5" />
-                <span className="text-sm font-medium">{geoLoading ? 'Detecting...' : 'Use my location'}</span>
+                <Navigation size={15} />
+                {geoLoading ? 'Detecting…' : 'Use my location'}
               </button>
             </div>
-            
-            {error && <div className="mt-3 text-sm text-red-600 dark:text-red-400 font-medium">{error}</div>}
+            {error && <div className="hq-hero__error">{error}</div>}
           </div>
         </div>
+      </section>
+
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
       {}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16 pt-16">
         <button 
           onClick={() => navigate('/tools/budget-calculator')}
           className="group p-8 bg-white dark:bg-gray-900 rounded-2xl hover:shadow-lg transition-all duration-300 text-left border border-gray-200 dark:border-gray-800 hover:border-red-400 dark:hover:border-red-500 hover:-translate-y-1"
@@ -323,13 +492,22 @@ export default function Home() {
           {}
           {!loading && trendingProperties.length > 0 ? (
             <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-              {trendingProperties.map((property) => (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+              gap: '24px',
+            }}>
+              {trendingProperties.map((property, index) => (
                 <PropertyCard 
                   key={property.id || property.title} 
                   property={property}
                   isDarkMode={isDarkMode}
                   onAddToFavorites={() => console.log('Added to favorites:', property.id)}
+                  style={{
+                    opacity: 0,
+                    animation: `fadeInUp 0.6s ease forwards`,
+                    animationDelay: `${index * 0.07}s`,
+                  }}
                 />
               ))}
             </div>

@@ -1,4 +1,8 @@
+/* ── Google Fonts ─────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap');
 
+/* ── HomeQuest Design Tokens ──────────────────────────────── */
+@import './styles/tokens.css';
 
 @tailwind base;
 @tailwind components;
@@ -6,7 +10,7 @@
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -136,3 +140,13 @@ code {
 
 .dark .bg-gray-300 { background-color: #083148 !important; }
 .dark .text-gray-400 { color: #8aaed6 !important; }
+
+/* ── Custom magnifying-glass cursor ──────────────────────────
+   The actual cursor element is injected by App.js.
+   cursor: none hides the native OS pointer site-wide.       */
+*, *::before, *::after {
+  cursor: none !important;
+}
+
+/* Restore pointer for elements that need it inside cursor logic */
+#hq-cursor { pointer-events: none; }

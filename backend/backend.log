@@ -1,86 +1,27 @@
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+node:events:487
+      throw er; // Unhandled 'error' event
+      ^
 
-> backend@1.0.0 dev
-> node server.js
+Error: listen EADDRINUSE: address already in use :::5001
+    at Server.setupListenHandle [as _listen2] (node:net:2008:16)
+    at listenInCluster (node:net:2065:12)
+    at Server.listen (node:net:2170:7)
+    at Object.<anonymous> (/Users/pushkarjain/Desktop/HomeQuest1/backend/server.js:350:8)
+    at Module._compile (node:internal/modules/cjs/loader:1829:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1969:10)
+    at Module.load (node:internal/modules/cjs/loader:1552:32)
+    at Module._load (node:internal/modules/cjs/loader:1354:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:2044:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 5001
+}
 
-[dotenv@17.2.3] injecting env (0) from .env -- tip: 🔑 add access controls to secrets: https://dotenvx.com/ops
-Server running on port 5001
-Prisma unavailable or error. Falling back to mock properties: 
-Invalid `prisma.property.count()` invocation in
-/Users/pushkarjain/Desktop/HomeQuest1/backend/controllers/propertiesController.js:59:25
-
-  56 const pageSize = 12;
-  57 
-  58 const [total, data] = await Promise.all([
-→ 59   prisma.property.count({
-         select: {
-           _count: {
-             select: {
-               _all: true
-             }
-           }
-         },
-         where: {
-           city: {
-             equals: "Delhi",
-             mode: "insensitive",
-             ~~~~
-       ?     in?: String[],
-       ?     notIn?: String[],
-       ?     lt?: String | StringFieldRefInput,
-       ?     lte?: String | StringFieldRefInput,
-       ?     gt?: String | StringFieldRefInput,
-       ?     gte?: String | StringFieldRefInput,
-       ?     contains?: String | StringFieldRefInput,
-       ?     startsWith?: String | StringFieldRefInput,
-       ?     endsWith?: String | StringFieldRefInput,
-       ?     search?: String,
-       ?     not?: String | NestedStringFilter
-           },
-           type: {
-             equals: "2BHK",
-             mode: "insensitive"
-           }
-         }
-       })
-
-Unknown argument `mode`. Did you mean `lte`? Available options are marked with ?.
-Prisma unavailable or error. Falling back to mock properties: 
-Invalid `prisma.property.count()` invocation in
-/Users/pushkarjain/Desktop/HomeQuest1/backend/controllers/propertiesController.js:59:25
-
-  56 const pageSize = 12;
-  57 
-  58 const [total, data] = await Promise.all([
-→ 59   prisma.property.count({
-         select: {
-           _count: {
-             select: {
-               _all: true
-             }
-           }
-         },
-         where: {
-           city: {
-             equals: "Delhi",
-             mode: "insensitive",
-             ~~~~
-       ?     in?: String[],
-       ?     notIn?: String[],
-       ?     lt?: String | StringFieldRefInput,
-       ?     lte?: String | StringFieldRefInput,
-       ?     gt?: String | StringFieldRefInput,
-       ?     gte?: String | StringFieldRefInput,
-       ?     contains?: String | StringFieldRefInput,
-       ?     startsWith?: String | StringFieldRefInput,
-       ?     endsWith?: String | StringFieldRefInput,
-       ?     search?: String,
-       ?     not?: String | NestedStringFilter
-           },
-           type: {
-             equals: "2BHK",
-             mode: "insensitive"
-           }
-         }
-       })
-
-Unknown argument `mode`. Did you mean `lte`? Available options are marked with ?.
+Node.js v26.0.0

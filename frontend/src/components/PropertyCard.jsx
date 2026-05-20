@@ -5,59 +5,353 @@ import { authAPI, favoritesAPI } from '../services/api';
 import { favoritesStorage } from '../services/favoritesStorage';
 import { sessionStorage } from '../services/sessionStorage';
 
-export default function PropertyCard({ property, onAddToFavorites, onDelete, isDarkMode = true }) {
+/* Inline SVG fallback — no network dependency */
+const FALLBACK_IMG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23f5f5f5'/%3E%3Cg fill='none' stroke='%23dddddd' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M160 185 L160 145 L200 112 L240 145 L240 185 Z'/%3E%3Crect x='183' y='158' width='34' height='27' rx='2'/%3E%3C/g%3E%3Ctext x='200' y='215' text-anchor='middle' fill='%23cccccc' font-family='sans-serif' font-size='13'%3ENo Image%3C/text%3E%3C/svg%3E";
+
+/* ─── Scoped styles ─────────────────────────────────────────────────────── */
+const CSS = `
+  @keyframes shimmer {
+    0%   { background-position: -400px 0; }
+    100% { background-position:  400px 0; }
+  }
+
+  /* ── Card shell ─────────────────────────────────────────────── */
+  .hq-card {
+    width: 100%;
+    border-radius: 16px;
+    overflow: hidden;
+    background: #ffffff;
+    box-shadow: none;
+    cursor: pointer;
+    position: relative;
+    transition:
+      transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+      box-shadow 0.3s ease;
+  }
+
+  .dark .hq-card {
+    background: #1e1e1e;
+  }
+
+  .hq-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.13);
+  }
+
+  .dark .hq-card:hover {
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  }
+
+  .hq-card--deleted {
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  /* ── Image area ─────────────────────────────────────────────── */
+  .hq-card__img-wrap {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    background: #f0f0f0;
+  }
+
+  .dark .hq-card__img-wrap {
+    background: #2a2a2a;
+  }
+
+  .hq-card__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.5s ease;
+  }
+
+  .hq-card:hover .hq-card__img {
+    transform: scale(1.06);
+  }
+
+  /* Shimmer skeleton */
+  .hq-card__shimmer {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      #f0f0f0 25%,
+      #e0e0e0 50%,
+      #f0f0f0 75%
+    );
+    background-size: 800px 100%;
+    animation: shimmer 1.4s infinite linear;
+  }
+
+  .dark .hq-card__shimmer {
+    background: linear-gradient(
+      90deg,
+      #2a2a2a 25%,
+      #333333 50%,
+      #2a2a2a 75%
+    );
+    background-size: 800px 100%;
+  }
+
+  /* No-image placeholder */
+  .hq-card__no-img {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 13px;
+    color: #b0b0b0;
+  }
+
+  /* ── Type badge (top-left) ──────────────────────────────────── */
+  .hq-card__type-badge {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: rgba(0, 0, 0, 0.50);
+    color: #ffffff;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    border-radius: 6px;
+    padding: 4px 10px;
+    letter-spacing: 0.02em;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  /* ── Favourite button (top-right) ───────────────────────────── */
+  .hq-card__fav-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 2;
+    transition: transform 0.2s ease, background 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  }
+
+  .hq-card__fav-btn:hover {
+    transform: scale(1.1);
+  }
+
+  .dark .hq-card__fav-btn {
+    background: rgba(30, 30, 30, 0.85);
+  }
+
+  /* ── Deleted overlay ────────────────────────────────────────── */
+  .hq-card__deleted-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.40);
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .hq-card__deleted-label {
+    background: #FF5A5F;
+    color: #fff;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 16px;
+    border-radius: 8px;
+  }
+
+  /* ── Details area ───────────────────────────────────────────── */
+  .hq-card__body {
+    padding: 14px 16px 16px;
+  }
+
+  /* Price */
+  .hq-card__price {
+    font-family: 'DM Mono', 'Courier New', monospace;
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--hq-red, #FF5A5F);
+    line-height: 1.2;
+    margin: 0;
+  }
+
+  /* Title / locality */
+  .hq-card__title {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--hq-dark, #222222);
+    margin: 4px 0 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.4;
+  }
+
+  .dark .hq-card__title {
+    color: var(--hq-dark, #f5f5f5);
+  }
+
+  /* City + area */
+  .hq-card__location {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 12px;
+    color: var(--hq-muted, #717171);
+  }
+
+  /* ── Bottom badges row ──────────────────────────────────────── */
+  .hq-card__badges {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(0,0,0,0.06);
+  }
+
+  .dark .hq-card__badges {
+    border-top-color: rgba(255,255,255,0.07);
+  }
+
+  .hq-card__badge {
+    background: #f7f7f7;
+    color: #555;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    border-radius: 99px;
+    padding: 3px 10px;
+    line-height: 1.6;
+    white-space: nowrap;
+  }
+
+  .dark .hq-card__badge {
+    background: #2a2a2a;
+    color: #aaa;
+  }
+
+  /* ── Action row ─────────────────────────────────────────────── */
+  .hq-card__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .hq-card__view-btn {
+    flex: 1;
+    padding: 9px 16px;
+    border-radius: 10px;
+    border: none;
+    background: var(--hq-red, #FF5A5F);
+    color: #fff;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--hq-transition, all 0.3s ease);
+    box-shadow: 0 2px 8px rgba(255, 90, 95, 0.28);
+  }
+
+  .hq-card__view-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(255, 90, 95, 0.38);
+  }
+
+  .hq-card__icon-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
+    border: 1px solid rgba(0,0,0,0.1);
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease;
+    color: var(--hq-muted, #717171);
+    flex-shrink: 0;
+  }
+
+  .dark .hq-card__icon-btn {
+    border-color: rgba(255,255,255,0.1);
+    color: #aaa;
+  }
+
+  .hq-card__icon-btn:hover {
+    background: rgba(255, 90, 95, 0.06);
+    border-color: rgba(255, 90, 95, 0.3);
+    color: var(--hq-red, #FF5A5F);
+  }
+`;
+
+export default function PropertyCard({ property, onAddToFavorites, onDelete, isDarkMode = true, style }) {
   const navigate = useNavigate();
   const [isFavorited, setIsFavorited] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
   const isAuthenticated = authAPI.isAuthenticated();
   const currentUser = authAPI.getCurrentUser();
   const isAdmin = currentUser?.role === 'admin';
   const isDeleted = isAdmin && sessionStorage.isPropertyDeleted(property.id);
 
-  
+  /* ── Favourite init (unchanged) ── */
   useEffect(() => {
     const propertyId = property.id || property.title;
     setIsFavorited(favoritesStorage.isFavorited(propertyId));
   }, [property]);
 
-  
-  const getPropertyField = (field, fallback = 'N/A') => {
-    return property[field] || property[field.toLowerCase()] || fallback;
-  };
+  /* ── Field helpers (unchanged) ── */
+  const getPropertyField = (field, fallback = 'N/A') =>
+    property[field] || property[field.toLowerCase()] || fallback;
 
-  const propertyImage = property.image || property.images?.[0] || property.photo || null;
-  const propertyPrice = getPropertyField('price', property.pricePerUnit);
-  const propertyTitle = getPropertyField('title', property.name);
-  const propertyLocation = getPropertyField('location', property.address);
-  const propertyArea = getPropertyField('area', property.size);
-  const propertyType = getPropertyField('type', '');
+  const propertyImage    = property.image || property.images?.[0] || property.photo || null;
+  const propertyPrice    = getPropertyField('price', property.pricePerUnit);
+  const propertyTitle    = getPropertyField('title', getPropertyField('name', property.type && property.locality ? `${property.type} in ${property.locality}` : 'Property Listed'));
+  const propertyLocation = getPropertyField('location', getPropertyField('address', property.locality || property.city || 'N/A'));
+  const propertyArea     = getPropertyField('area', property.size);
+  const propertyType     = getPropertyField('type', '');
+  const propertyCity     = property.city || '';
 
+  /* ── Handlers (unchanged logic) ── */
   const handleFavoriteClick = async (e) => {
     e.stopPropagation();
-    
     if (!isAuthenticated) {
-      
       alert('You have not logged in yet. Please login to add properties to favorites.');
       navigate('/login', { state: { from: window.location.pathname, message: 'Please login to add properties to favorites' } });
       return;
     }
-    
     try {
       if (isFavorited) {
-        
         const favorites = await favoritesAPI.getFavorites();
-        const favorite = favorites.find(f => f.propertyId === (property.id || property.title));
+        const favorite = favorites.find((f) => f.propertyId === (property.id || property.title));
         if (favorite) {
           await favoritesAPI.removeFavorite(favorite.id);
           setIsFavorited(false);
         }
       } else {
-        
         await favoritesAPI.addFavorite(property.id || property.title);
         setIsFavorited(true);
       }
-      if (onAddToFavorites) {
-        onAddToFavorites(property);
-      }
+      if (onAddToFavorites) onAddToFavorites(property);
     } catch (err) {
       console.warn('API favorite failed:', err);
       alert('Failed to add to favorites. Please try again.');
@@ -67,13 +361,9 @@ export default function PropertyCard({ property, onAddToFavorites, onDelete, isD
   const handleDelete = async (e) => {
     e.stopPropagation();
     if (!window.confirm('Mark this property as deleted? (This is temporary and will reset on logout)')) return;
-
     try {
-      
       sessionStorage.addDeletedProperty(property.id);
       alert('Property marked as deleted! (Will reset on logout)');
-      
-      
       window.location.reload();
     } catch (err) {
       alert('Failed to mark property as deleted: ' + err.message);
@@ -81,7 +371,6 @@ export default function PropertyCard({ property, onAddToFavorites, onDelete, isD
   };
 
   const handleCardClick = () => {
-    
     if (isDeleted) {
       alert('Property has been deleted by the admin');
       return;
@@ -89,143 +378,139 @@ export default function PropertyCard({ property, onAddToFavorites, onDelete, isD
     navigate(`/property/${property.id || property.title}`, { state: { property } });
   };
 
+  const formattedPrice =
+    typeof propertyPrice === 'number'
+      ? `₹${propertyPrice.toLocaleString()}`
+      : propertyPrice;
+
+  const formattedArea =
+    typeof propertyArea === 'number' ? `${propertyArea} sqft` : propertyArea;
+
   return (
-    <div 
-      onClick={handleCardClick}
-      className={`group relative rounded-2xl transition-all duration-300 overflow-hidden cursor-pointer border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-red-400 dark:hover:border-red-500 hover:shadow-xl hover:-translate-y-1 ${isDeleted ? 'opacity-60' : ''}`}
-      style={{boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'}}
-    >
-      {}
-      {isDeleted && (
-        <div className="absolute inset-0 bg-black/40 z-10 flex items-center justify-center">
-          <div className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold">
-            Deleted (Temporary)
-          </div>
-        </div>
-      )}
-      
-      {}
-      <div className="relative h-56 md:h-64 overflow-hidden bg-gray-100 dark:bg-gray-900">
-        {propertyImage ? (
-          <img 
-            src={propertyImage} 
-            alt={propertyTitle}
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-            onError={(e) => {
-              e.target.src = 'https://via.placeholder.com/400x300?text=Property+Image';
-            }}
-          />
-        ) : (
-          <div className={`w-full h-full flex items-center justify-center ${isDarkMode ? 'bg-slate-800' : 'bg-neutral-100'}`}>
-            <span className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-muted'}`}>No Image Available</span>
+    <>
+      <style>{CSS}</style>
+
+      <div
+        onClick={handleCardClick}
+        className={`hq-card${isDeleted ? ' hq-card--deleted' : ''}`}
+        style={style}
+      >
+        {/* ── Deleted overlay ── */}
+        {isDeleted && (
+          <div className="hq-card__deleted-overlay">
+            <span className="hq-card__deleted-label">Deleted (Temporary)</span>
           </div>
         )}
 
-        {}
-        {propertyType && (
-          <div className="absolute top-4 left-4 bg-neutral-200 text-primary-text px-3 py-1 rounded-full text-xs font-medium border border-neutral-200">
-            {propertyType}
-          </div>
-        )}
+        {/* ── Image area ── */}
+        <div className="hq-card__img-wrap">
+          {/* Shimmer until image loads */}
+          {!imgLoaded && <div className="hq-card__shimmer" />}
 
-        {}
-        <button
-          onClick={handleFavoriteClick}
-          className={`absolute top-4 right-4 rounded-full p-2 transition border ${isDarkMode ? 'bg-slate-900/60 hover:bg-slate-900/80 border-slate-700/40' : 'bg-white border-neutral-200 hover:bg-neutral-100'}`}
-        >
-          <Heart
-            className={`w-5 h-5 md:w-6 md:h-6 transition-colors duration-300 ${isFavorited ? 'fill-red-500 text-red-500' : isDarkMode ? 'text-slate-300 hover:text-red-400' : 'text-gray-600 hover:text-red-500'}`}
-          />
-        </button>
+          {propertyImage ? (
+            <img
+              src={propertyImage}
+              alt={propertyTitle}
+              className="hq-card__img"
+              style={{ display: imgLoaded ? 'block' : 'none' }}
+              onLoad={() => setImgLoaded(true)}
+              onError={(e) => {
+                e.target.src = FALLBACK_IMG;
+                setImgLoaded(true);
+              }}
+            />
+          ) : (
+            <div className="hq-card__no-img">No Image Available</div>
+          )}
 
-        {}
-        {propertyPrice && (
-          <div className={`absolute bottom-4 left-4 px-3 py-2 rounded text-primary-text bg-white border ${isDarkMode ? 'bg-slate-900/70 text-white border-slate-700' : 'bg-white border-neutral-200 text-primary-text'}`}>
-            <p className="font-semibold text-sm md:text-base">
-              {typeof propertyPrice === 'number' ? `₹${propertyPrice.toLocaleString()}` : propertyPrice}
-            </p>
-          </div>
-        )}
-      </div>
-
-      {}
-      <div className="p-6 md:p-7 font-ui">
-        {}
-        <h3 className="text-base md:text-lg font-medium mb-2 line-clamp-2" style={{color: '#DC143C'}}>
-          {propertyTitle}
-        </h3>
-
-        {}
-        <div className={`flex items-center text-xs md:text-sm mb-4 ${isDarkMode ? 'text-slate-300' : 'text-muted'}`}>
-          <MapPin className="w-4 h-4 mr-2 flex-shrink-0" style={{color: '#DC143C'}} />
-          <p className="line-clamp-1">{propertyLocation}</p>
-        </div>
-
-        {}
-        <div className={`grid grid-cols-3 gap-3 mb-5 py-4 border-t border-b ${isDarkMode ? 'border-slate-700/50' : 'border-neutral-200'}`}>
-          {}
+          {/* Type badge */}
           {propertyType && (
-            <div className="text-center">
-              <p className={`text-xs font-medium ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>Type</p>
-              <p className={`font-semibold text-sm mt-1 ${isDarkMode ? 'text-slate-100' : 'text-gray-900'}`}>{propertyType}</p>
-            </div>
+            <span className="hq-card__type-badge">{propertyType}</span>
           )}
 
-          {}
-          {propertyArea && (
-            <div className="text-center">
-              <p className={`text-xs font-medium ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>Area</p>
-              <p className={`font-semibold text-sm mt-1 ${isDarkMode ? 'text-slate-100' : 'text-gray-900'}`}>
-                {typeof propertyArea === 'number' ? `${propertyArea} sqft` : propertyArea}
-              </p>
-            </div>
-          )}
-
-          {}
-          {(property.beds || property.bedrooms) && (
-            <div className="text-center">
-              <p className={`text-xs font-medium ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>Beds</p>
-              <p className={`font-semibold text-sm mt-1 ${isDarkMode ? 'text-slate-100' : 'text-gray-900'}`}>{property.beds || property.bedrooms}</p>
-            </div>
-          )}
+          {/* Favourite button */}
+          <button
+            onClick={handleFavoriteClick}
+            className="hq-card__fav-btn"
+            aria-label={isFavorited ? 'Remove from favourites' : 'Add to favourites'}
+          >
+            <Heart
+              size={16}
+              strokeWidth={2}
+              style={{
+                color: isFavorited ? '#FF5A5F' : '#888',
+                fill: isFavorited ? '#FF5A5F' : 'none',
+                transition: 'color 0.2s ease, fill 0.2s ease',
+              }}
+            />
+          </button>
         </div>
 
-        {}
-        {property.description && (
-          <p className={`text-sm mb-5 line-clamp-2 font-light ${isDarkMode ? 'text-slate-300' : 'text-muted'}`}>
-            {property.description}
-          </p>
-        )}
-
-        {}
-        <div className={`flex items-center justify-between gap-2 pt-4 border-t ${isDarkMode ? 'border-slate-700/50' : 'border-gray-200'}`}>
-          <button 
-            onClick={handleCardClick}
-            className="flex-1 px-5 py-2.5 rounded-xl font-ui font-medium text-sm text-white bg-hm-red hover:shadow-md transition-all hover:-translate-y-0.5"
-            style={{boxShadow: '0 2px 6px rgba(220, 20, 60, 0.2)'}}
-          >
-            View Details
-          </button>
-          {isAdmin && (
-            <button
-              onClick={handleDelete}
-              className="px-3 py-2.5 border border-red-500 text-red-500 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition-all flex items-center gap-1"
-              title="Delete Property"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+        {/* ── Details area ── */}
+        <div className="hq-card__body">
+          {/* Price */}
+          {propertyPrice && propertyPrice !== 'N/A' && (
+            <p className="hq-card__price">{formattedPrice}</p>
           )}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              
-            }}
-            className="p-2.5 border border-slate-700/50 rounded-lg hover:bg-slate-700/30 transition-colors backdrop-blur-sm hover:border-cyan-500/50"
-          >
-            <Share2 className="w-5 h-5 text-black dark:text-white" style={{color: '#DC143C'}} />
-          </button>
+
+          {/* Title / locality */}
+          <p className="hq-card__title" title={propertyTitle}>
+            {propertyTitle !== 'N/A' ? propertyTitle : propertyLocation}
+          </p>
+
+          {/* City + area */}
+          {(propertyCity || propertyLocation) && (
+            <div className="hq-card__location">
+              <MapPin size={11} strokeWidth={2} style={{ flexShrink: 0, color: 'var(--hq-muted,#717171)' }} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {[propertyCity, propertyLocation !== 'N/A' ? propertyLocation : null].filter(Boolean).join(' · ')}
+              </span>
+            </div>
+          )}
+
+          {/* Pill badges */}
+          <div className="hq-card__badges">
+            {propertyType && <span className="hq-card__badge">{propertyType}</span>}
+            {formattedArea && formattedArea !== 'N/A' && (
+              <span className="hq-card__badge">{formattedArea}</span>
+            )}
+            {(property.beds || property.bedrooms) && (
+              <span className="hq-card__badge">{property.beds || property.bedrooms} Beds</span>
+            )}
+            {property.demand > 0 && (
+              <span className="hq-card__badge" style={{ color: 'var(--hq-red,#FF5A5F)', background: 'rgba(255,90,95,0.1)' }}>
+                🔥 {property.demand}% demand
+              </span>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="hq-card__actions">
+            <button onClick={handleCardClick} className="hq-card__view-btn">
+              View Details
+            </button>
+
+            {isAdmin && (
+              <button
+                onClick={handleDelete}
+                className="hq-card__icon-btn"
+                title="Delete Property"
+                aria-label="Delete property"
+              >
+                <Trash2 size={15} strokeWidth={2} />
+              </button>
+            )}
+
+            <button
+              onClick={(e) => { e.stopPropagation(); }}
+              className="hq-card__icon-btn"
+              aria-label="Share property"
+            >
+              <Share2 size={15} strokeWidth={2} />
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

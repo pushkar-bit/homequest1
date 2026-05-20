@@ -20,19 +20,19 @@ const prisma = new PrismaClient();
 
 const corsOptions = {
   origin: function (origin, callback) {
-    
+
     if (!origin) return callback(null, true);
     const allowed = process.env.FRONTEND_URL || 'http://localhost:3000';
-    
+
     if (process.env.NODE_ENV === 'production') {
       if (origin === allowed) return callback(null, true);
       return callback(new Error('Not allowed by CORS'));
     }
-    
+
     if (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1') || origin === allowed) {
       return callback(null, true);
     }
-    
+
     return callback(null, true);
   },
   credentials: true,
@@ -68,12 +68,12 @@ app.post('/api/auth/signup', async (req, res) => {
   try {
     const { name, email, password, role = 'user' } = req.body;
 
-    
+
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'Please provide name, email, and password' });
     }
 
-    
+
     const existingUser = await prisma.user.findUnique({
       where: { email }
     });
@@ -82,15 +82,15 @@ app.post('/api/auth/signup', async (req, res) => {
       return res.status(400).json({ error: 'User already exists with this email' });
     }
 
-    
+
     if (!['user', 'agent', 'admin'].includes(role)) {
       return res.status(400).json({ error: 'Invalid role. Must be user, agent, or admin' });
     }
 
-    
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    
+
     const user = await prisma.user.create({
       data: {
         name,
@@ -100,7 +100,7 @@ app.post('/api/auth/signup', async (req, res) => {
       }
     });
 
-    
+
     const token = jwt.sign(
       { userId: user.id, email: user.email, role: user.role },
       JWT_SECRET,
@@ -118,7 +118,7 @@ app.post('/api/auth/signup', async (req, res) => {
         }
       });
 
-      
+
       res.cookie('refreshToken', refreshTokenValue, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -170,7 +170,7 @@ app.post('/api/auth/login', async (req, res) => {
       const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000);
       await prisma.refreshToken.create({ data: { token: refreshTokenValue, userId: user.id, expiresAt } });
 
-      
+
       res.cookie('refreshToken', refreshTokenValue, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -199,7 +199,7 @@ app.post('/api/auth/refresh', async (req, res) => {
       return res.status(401).json({ error: 'No refresh token provided' });
     }
 
-    
+
     let rt;
     try {
       rt = await prisma.refreshToken.findUnique({ where: { token: refreshTokenValue } });
@@ -213,21 +213,21 @@ app.post('/api/auth/refresh', async (req, res) => {
     const now = new Date();
     if (new Date(rt.expiresAt) < now) return res.status(401).json({ error: 'Refresh token expired' });
 
-    
+
     const user = await prisma.user.findUnique({ where: { id: rt.userId } });
     if (!user) return res.status(401).json({ error: 'User not found' });
 
-    
+
     try {
       await prisma.refreshToken.update({ where: { id: rt.id }, data: { revoked: true } });
       const newRefreshTokenValue = crypto.randomBytes(40).toString('hex');
       const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000);
       await prisma.refreshToken.create({ data: { token: newRefreshTokenValue, userId: user.id, expiresAt } });
 
-      
+
       const accessToken = jwt.sign({ userId: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
 
-      
+
       res.cookie('refreshToken', newRefreshTokenValue, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -324,8 +324,11 @@ const PORT = process.env.PORT || 5001;
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-    methods: ['GET', 'POST']
+    origin: process.env.NODE_ENV === 'production'
+      ? (process.env.FRONTEND_URL || 'http://localhost:3000')
+      : /^http:\/\/localhost(:\d+)?$/,
+    methods: ['GET', 'POST'],
+    credentials: true,
   }
 });
 
@@ -335,7 +338,7 @@ app.set('io', io);
 io.on('connection', (socket) => {
   console.log('Socket connected:', socket.id);
 
-  
+
   socket.on('join', (room) => {
     socket.join(room);
   });
@@ -343,10 +346,12 @@ io.on('connection', (socket) => {
     socket.leave(room);
   });
   socket.on('disconnect', () => {
-    
+
   });
 });
 
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+module.exports = { prisma }
