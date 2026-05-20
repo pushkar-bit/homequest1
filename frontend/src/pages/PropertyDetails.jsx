@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Heart, MapPin, Home, Maximize2, Bed, ArrowLeft, Share2, Loader } from 'lucide-react';
+import { Heart, MapPin, Home, ArrowLeft, Share2, Loader } from 'lucide-react';
 import { getPropertyById, authAPI, favoritesAPI } from '../services/api';
 import { favoritesStorage } from '../services/favoritesStorage';
 import PropertyChatBot from '../components/PropertyChatBot';
@@ -215,10 +215,6 @@ export default function PropertyDetails() {
     return property[field] || '';
   };
 
-  const getImageUrl = () => {
-    if (!property) return FALLBACK_IMG;
-    return property.image || property.images?.[0] || property.photo || FALLBACK_IMG;
-  };
 
   if (loading) {
     return (
