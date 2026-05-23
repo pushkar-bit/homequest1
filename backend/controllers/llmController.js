@@ -3,10 +3,12 @@ const Groq = require('groq-sdk');
 // ── Groq client ───────────────────────────────────────────────────────────────
 const GROQ_API_KEY = process.env.RAPIDAPI_KEY; // stored under RAPIDAPI_KEY in .env
 let groq = null;
-if (GROQ_API_KEY) {
+
+// Only initialize Groq if the key is a valid Groq key (starts with gsk_)
+if (GROQ_API_KEY && GROQ_API_KEY.startsWith('gsk_')) {
   groq = new Groq({ apiKey: GROQ_API_KEY });
 } else {
-  console.warn('[llmController] No GROQ API key found — falling back to static responses');
+  console.warn('[llmController] No valid GROQ API key found (must start with gsk_) — falling back to static responses');
 }
 
 // ── System prompt ─────────────────────────────────────────────────────────────
