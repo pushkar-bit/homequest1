@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Heart, MapPin, Home, ArrowLeft, Share2, Loader } from 'lucide-react';
+import { Heart, MapPin, Home, ArrowLeft, Share2 } from 'lucide-react';
 import { getPropertyById, authAPI, favoritesAPI } from '../services/api';
 import { favoritesStorage } from '../services/favoritesStorage';
 import PropertyChatBot from '../components/PropertyChatBot';
+import { GooeyLoader } from '../components/GooeyLoader';
 
 const FALLBACK_IMG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='400' viewBox='0 0 600 400'%3E%3Crect width='600' height='400' fill='%23f5f5f5'/%3E%3Cg fill='none' stroke='%23dddddd' stroke-width='9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M240 275 L240 215 L300 165 L360 215 L360 275 Z'/%3E%3Crect x='272' y='232' width='56' height='43' rx='3'/%3E%3C/g%3E%3Ctext x='300' y='315' text-anchor='middle' fill='%23cccccc' font-family='sans-serif' font-size='16'%3ENo Image%3C/text%3E%3C/svg%3E";
 
@@ -221,8 +222,7 @@ export default function PropertyDetails() {
       <div className="hq-pd-wrapper" style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center' }}>
         <style>{PD_CSS}</style>
         <div className="text-center">
-          <Loader className="w-12 h-12 animate-spin mx-auto mb-4 text-[#FF5A5F]" />
-          <p className="text-gray-600 dark:text-gray-400">Loading property details...</p>
+          <GooeyLoader message="Loading property details..." />
         </div>
       </div>
     );

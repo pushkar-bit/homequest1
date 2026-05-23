@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, TrendingUp, TrendingDown, Edit2, RotateCcw, Save, X } from 'lucide-react';
+import { GooeyLoader } from '../components/GooeyLoader';
 import { authAPI } from '../services/api';
 
 const MOCK_CITY_INSIGHTS = {
@@ -248,7 +249,7 @@ export default function Insights() {
 
         {error && <div style={{ background:'rgba(255,90,95,.08)', border:'1px solid rgba(255,90,95,.3)', borderRadius:12, padding:'12px 18px', color:'var(--hq-red,#FF5A5F)', fontFamily:'Inter,system-ui,sans-serif', fontSize:14, marginBottom:24 }}>{error}</div>}
 
-        {loading && <div style={{ textAlign:'center', padding:'48px 0' }}><div style={{ width:40,height:40,borderRadius:'50%',border:'3px solid #eee',borderTopColor:'var(--hq-red,#FF5A5F)',animation:'spin .8s linear infinite',margin:'0 auto' }}/></div>}
+        {loading && <div style={{ textAlign:'center', padding:'48px 0', minHeight:'300px', display:'flex', alignItems:'center', justifyContent:'center' }}><GooeyLoader message="Loading insights..." /></div>}
 
         {/* Stat cards */}
         {!loading && activeCityData && (

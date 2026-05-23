@@ -150,7 +150,94 @@ const HouseIcon = () => (
   </svg>
 );
 
-/* ── Component ──────────────────────────────────────────────── */
+/* ── Markdown renderer (no extra deps) ────────────────────────── */
+const renderInline = (text) => {
+  // Split on **bold** and *italic* markers
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**'))
+      return <strong key={i} style={{ fontWeight: 700 }}>{part.slice(2, -2)}</strong>;
+    if (part.startsWith('*') && part.endsWith('*'))
+      return <em key={i}>{part.slice(1, -1)}</em>;
+    return part;
+  });
+};
+
+const renderMessage = (text) => {
+  if (!text) return null;
+  // Normalise: replace \r\n and \r with \n
+  const normalised = text.replace(/\r\n?/g, '\n');
+  // Split into lines
+  const lines = normalised.split('\n');
+
+  const elements = [];
+  let listType   = null; // 'ul' | 'ol' | null
+  let listItems  = [];
+
+  const flushList = () => {
+    if (!listItems.length) return;
+    const Tag = listType === 'ol' ? 'ol' : 'ul';
+    elements.push(
+      <Tag key={`list-${elements.length}`} style={{
+        margin: '6px 0 6px 4px',
+        paddingLeft: 18,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 4,
+      }}>
+        {listItems.map((item, i) => (
+          <li key={i} style={{ lineHeight: 1.55 }}>{renderInline(item)}</li>
+        ))}
+      </Tag>
+    );
+    listItems = [];
+    listType  = null;
+  };
+
+  lines.forEach((raw, idx) => {
+    const line = raw.trimEnd();
+
+    // Blank line → flush list, skip
+    if (!line.trim()) {
+      flushList();
+      return;
+    }
+
+    // Bullet point: starts with - , * , • , –
+    const bulletMatch = line.match(/^\s*[-*•–]\s+(.+)/);
+    if (bulletMatch) {
+      if (listType === 'ol') flushList();
+      listType = 'ul';
+      listItems.push(bulletMatch[1].trim());
+      return;
+    }
+
+    // Numbered list: starts with 1. or 1)
+    const numberedMatch = line.match(/^\s*\d+[.)\s]\s*(.+)/);
+    if (numberedMatch) {
+      if (listType === 'ul') flushList();
+      listType = 'ol';
+      listItems.push(numberedMatch[1].trim());
+      return;
+    }
+
+    // Normal paragraph line
+    flushList();
+    const trimmed = line.trim();
+    if (trimmed) {
+      elements.push(
+        <p key={`p-${idx}`} style={{ margin: '4px 0', lineHeight: 1.55 }}>
+          {renderInline(trimmed)}
+        </p>
+      );
+    }
+  });
+
+  flushList();
+  return <>{elements}</>;
+};
+
+/* ── Component ──────────────────────────────────────────── */
 export default function PropertyChatBot({ property, isOpen: controlledOpen, onClose, onDealClosed }) {
   /* ── All original state (unchanged) ── */
   const [internalOpen, setInternalOpen] = useState(false);
@@ -160,8 +247,23 @@ export default function PropertyChatBot({ property, isOpen: controlledOpen, onCl
   const [loading,  setLoading]  = useState(false);
   const listRef = useRef(null);
 
-  /* ── Original effects (unchanged) ── */
-  useEffect(() => { setMessages([]); setText(''); }, [property?.id]);
+  /* ── Auto-welcome on property change ── */
+  useEffect(() => {
+    if (property?.id) {
+      const name = property.title || property.name || `${property.type || 'Property'} in ${property.locality || property.city || ''}`.trim();
+      const price = property.price ? ` priced at ${property.price}` : '';
+      const area  = property.area  ? ` with an area of ${property.area}` : '';
+      setMessages([{
+        id: 'welcome',
+        sender: 'bot',
+        text: `👋 Hi! I'm your HomeQuest AI assistant. I have full details about **${name}**${price}${area}. Ask me anything about this property or any real estate question!`,
+        createdAt: new Date(),
+      }]);
+      setText('');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [property?.id]);
+
   useEffect(() => {
     if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [messages.length]);
@@ -174,8 +276,12 @@ export default function PropertyChatBot({ property, isOpen: controlledOpen, onCl
     setText('');
     setLoading(true);
     try {
-      const res = await api.post('/api/llm/property-chat', { property, message: userMsg.text });
-      const botText = res?.data?.data?.text || 'I can only answer questions about this property.';
+      const res = await api.post('/api/llm/property-chat', {
+        property,
+        message: userMsg.text,
+        history: messages, // send full history for multi-turn context
+      });
+      const botText = res?.data?.data?.text || 'Sorry, I could not process your request right now.';
       setMessages((m) => [...m, { id: `b_${Date.now()}`, sender: 'bot', text: botText, createdAt: new Date() }]);
     } catch (err) {
       console.error('LLM error', err);
@@ -240,14 +346,35 @@ export default function PropertyChatBot({ property, isOpen: controlledOpen, onCl
 
           {/* Messages */}
           <div className="hq-cb-msgs" ref={listRef}>
-            {messages.length === 0 && (
-              <div style={{ fontFamily:'Inter,system-ui,sans-serif', fontSize:13, color:'var(--hq-muted,#aaa)', textAlign:'center', margin:'auto 0', padding:'24px 0' }}>
-                Ask me about price, location, area,<br />builder, amenities &amp; more.
+            {/* Quick question chips */}
+            {messages.length <= 1 && property && (
+              <div style={{ display:'flex', flexWrap:'wrap', gap:6, padding:'0 4px 4px' }}>
+                {[
+                  `What's the price?`,
+                  `Tell me about the area`,
+                  `What type of property is this?`,
+                  `What city is this in?`,
+                ].map((q) => (
+                  <button
+                    key={q}
+                    onClick={() => { setText(q); }}
+                    style={{
+                      fontSize:11, padding:'5px 10px', borderRadius:99,
+                      border:'1px solid #e0e0e0', background:'#f9f9f9',
+                      color:'#555', cursor:'pointer', fontFamily:'Inter,system-ui,sans-serif',
+                      transition:'background .15s ease'
+                    }}
+                    onMouseOver={e => e.target.style.background='#f0f0f0'}
+                    onMouseOut={e => e.target.style.background='#f9f9f9'}
+                  >
+                    {q}
+                  </button>
+                ))}
               </div>
             )}
             {messages.map((m) => (
               <div key={m.id} className={`hq-cb-msg hq-cb-msg--${m.sender}`}>
-                {m.text}
+                {m.sender === 'bot' ? renderMessage(m.text) : m.text}
               </div>
             ))}
             {loading && (
@@ -266,7 +393,7 @@ export default function PropertyChatBot({ property, isOpen: controlledOpen, onCl
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-              placeholder="Ask about this property…"
+              placeholder="Ask about property or real estate…"
               disabled={loading}
             />
             <button

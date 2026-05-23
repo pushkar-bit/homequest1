@@ -4,6 +4,7 @@ import SearchBar from '../components/SearchBar';
 import PropertyCard from '../components/PropertyCard';
 import { fetchProperties, fetchAllProperties } from '../services/propertyAPI';
 import Pagination from '../components/Pagination';
+import { GooeyLoader } from '../components/GooeyLoader';
 import { Calculator, TrendingUp, DollarSign, Ruler, Navigation } from 'lucide-react';
 
 const HERO_CSS = `
@@ -482,10 +483,10 @@ export default function Home() {
             </div>
           )}
 
-          {}
+          {/* Loading State */}
           {loading && (
-            <div className="flex justify-center items-center py-16 md:py-20">
-              <div className="w-12 h-12 rounded-full animate-spin border-2 border-gray-300 dark:border-gray-700" style={{borderTopColor: '#DC143C'}} />
+            <div className="flex justify-center items-center py-16 md:py-20 min-h-[300px]">
+              <GooeyLoader message="Loading properties..." />
             </div>
           )}
 

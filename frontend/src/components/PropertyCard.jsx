@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { authAPI, favoritesAPI } from '../services/api';
 import { favoritesStorage } from '../services/favoritesStorage';
 import { sessionStorage } from '../services/sessionStorage';
+import { GooeyLoader } from './GooeyLoader';
 
 /* Inline SVG fallback — no network dependency */
 const FALLBACK_IMG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23f5f5f5'/%3E%3Cg fill='none' stroke='%23dddddd' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M160 185 L160 145 L200 112 L240 145 L240 185 Z'/%3E%3Crect x='183' y='158' width='34' height='27' rx='2'/%3E%3C/g%3E%3Ctext x='200' y='215' text-anchor='middle' fill='%23cccccc' font-family='sans-serif' font-size='13'%3ENo Image%3C/text%3E%3C/svg%3E";
@@ -323,7 +324,14 @@ export default function PropertyCard({ property, onAddToFavorites, onDelete, isD
   const getPropertyField = (field, fallback = 'N/A') =>
     property[field] || property[field.toLowerCase()] || fallback;
 
-  const propertyImage    = property.image || property.images?.[0] || property.photo || null;
+  let propertyImage    = property.image || property.images?.[0] || property.photo || null;
+  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+  if (propertyImage && propertyImage.startsWith('uploads/')) {
+    propertyImage = `${API_BASE_URL}/${propertyImage}`;
+  } else if (propertyImage && propertyImage.startsWith('/uploads')) {
+    propertyImage = `${API_BASE_URL}${propertyImage}`;
+  }
+  
   const propertyPrice    = getPropertyField('price', property.pricePerUnit);
   const propertyTitle    = getPropertyField('title', getPropertyField('name', property.type && property.locality ? `${property.type} in ${property.locality}` : 'Property Listed'));
   const propertyLocation = getPropertyField('location', getPropertyField('address', property.locality || property.city || 'N/A'));
@@ -404,8 +412,13 @@ export default function PropertyCard({ property, onAddToFavorites, onDelete, isD
 
         {/* ── Image area ── */}
         <div className="hq-card__img-wrap">
-          {/* Shimmer until image loads */}
-          {!imgLoaded && <div className="hq-card__shimmer" />}
+          {/* Loader until image loads */}
+          {!imgLoaded && propertyImage && (
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1, background: isDarkMode ? '#2a2a2a' : '#f0f0f0' }}>
+              <GooeyLoader />
+            </div>
+          )}
+          {!imgLoaded && !propertyImage && <div className="hq-card__shimmer" />}
 
           {propertyImage ? (
             <img
